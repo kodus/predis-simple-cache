@@ -16,6 +16,18 @@
         "predis/predis": "^1.1"
     },
     "autoload": {
-        "\\Kodus\\PredisSimpleCache\\": "src/"
+        "psr-4": {
+            "Kodus\\PredisSimpleCache\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kodus\\PredisSimpleCache\\Test\\": "tests/integration/"
+        }
+    },
+    "require-dev": {
+        "codeception/codeception": "^4.1",
+        "codeception/module-redis": "^1.2",
+        "codeception/module-asserts": "^1.3"
     }
 }
