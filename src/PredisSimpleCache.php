@@ -2,7 +2,6 @@
 
 namespace Kodus\PredisSimpleCache;
 
-use Closure;
 use DateInterval;
 use Predis\Client;
 use Psr\SimpleCache\CacheInterface;
@@ -11,12 +10,6 @@ use Traversable;
 
 /**
  * Bridges PSR-16 interface to a redis database via the predis/predis client.
- *
- * Dev Note:
- * Notice the design of \Predis\Client is to simply pass function name and arguments to redis, but uses the typehints
- * from the ext-redis client \Redis. So don't trust the typehints blindly and refer to the redis documentation when
- * \Predis\Client behaves in an unexpected manner. And test rigorously!
- *
  */
 class PredisSimpleCache implements CacheInterface
 {
@@ -58,12 +51,10 @@ class PredisSimpleCache implements CacheInterface
         }
 
         if ($expires > 0) {
-            $this->client->setex($key, $expires, serialize($value));
+            return mb_strpos('OK', $this->client->setex($key, $expires, serialize($value))) !== false;
         } else {
-            $this->delete($key);
+            return $this->delete($key);
         }
-
-        return true;
     }
 
     public function delete($key): bool
@@ -89,15 +80,12 @@ class PredisSimpleCache implements CacheInterface
         /** @var Traversable|array $keys */
         $key_list = is_array($keys) ? $keys : iterator_to_array($keys);
 
+        $result = [];
         foreach ($key_list as $key) {
             if (! is_int($key)) {
                 $this->validateKey($key);
             }
-        }
 
-
-        $result = [];
-        foreach ($key_list as $key) {
             $value = $this->client->get($key);
             $result[$key] = $value ? unserialize($value) : $default;
         }
@@ -110,12 +98,24 @@ class PredisSimpleCache implements CacheInterface
         $this->validateIterable($values);
 
         //Dev. Note: Using mset does not allow TTL arguments, so it seems going through all keys is unavoidable.
-        foreach ($values as $key => $value) {
-            if (! is_int($key)) {
-                $this->validateKey($key);
+        $this->client->multi();
+        try {
+            foreach ($values as $key => $value) {
+                if (! is_int($key)) {
+                    $this->validateKey($key);
+                }
+                $this->set((string) $key, $value, $ttl);
             }
-            $this->set((string) $key, $value, $ttl);
+        } catch (InvalidArgumentException $exception) {
+            $this->client->discard();
+
+            throw $exception;
+        } catch (Throwable $throwable) {
+            $this->client->discard();
+
+            return false;
         }
+        $this->client->exec();
 
         return true;
     }
@@ -125,22 +125,20 @@ class PredisSimpleCache implements CacheInterface
         /** @var $keys array|Traversable */
         $this->validateIterable($keys);
 
-        // Dev Note: Predis\Client claims to accept string|array, but only allows string.
-        $this->client->multi();
-        try {
-            foreach ($keys as $key) {
-                if (! is_int($key)) {
-                    $this->validateKey($key);
-                }
-                $this->client->del($key);
+        $arguments = []; // $keys might be a Traversable instance, so we map them to $arguments, while validating
+        foreach ($keys as $key) {
+            if (! is_int($key)) {
+                $this->validateKey($key);
             }
-        } catch (Throwable $throwable) {
-            $this->client->discard();
 
-            throw $throwable;
+            $arguments[] = $key;
         }
 
-        $this->client->exec();
+        if (count($arguments) < 1) {
+            return true;
+        }
+
+        $this->client->del($arguments);
 
         return true;
     }
@@ -160,6 +158,11 @@ class PredisSimpleCache implements CacheInterface
         return $date_time->getTimestamp();
     }
 
+    /**
+     * @param mixed $key
+     *
+     * @throws InvalidArgumentException If the key is not a valid key string.
+     */
     private function validateKey($key): void
     {
         if (! is_string($key)) {
@@ -173,15 +176,17 @@ class PredisSimpleCache implements CacheInterface
         }
     }
 
+    /**
+     * PSR-16 defines "iterable" as either an actual array or an instance of Traversable
+     *
+     * @param $values
+     *
+     * @throws InvalidArgumentException if the parameter is not an iterable value
+     */
     private function validateIterable($values): void
     {
-        if (! $this->isArrayOrTraversable($values)) {
+        if (! is_array($values) && ! $values instanceof Traversable) {
             throw new InvalidArgumentException("Values must be an array or instance of \Traversable");
         }
-    }
-
-    private function isArrayOrTraversable($value): bool
-    {
-        return is_array($value) || $value instanceof Traversable;
     }
 }
