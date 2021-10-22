@@ -10,7 +10,6 @@ use Kodus\PredisSimpleCache\PredisSimpleCache;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
 
-//TODO change message phraming to be case motivations, rather than error messages
 class PredisSimpleCacheCest
 {
     private const DEFAULT_TTL = 1;
@@ -19,7 +18,7 @@ class PredisSimpleCacheCest
 
     public function _before(IntegrationTester $I): void
     {
-        $I->cleanup();
+        $I->cleanup(); // Empties Redis database before each test
 
         $this->cache = new PredisSimpleCache($I->getClient(), self::DEFAULT_TTL);
     }
@@ -31,8 +30,6 @@ class PredisSimpleCacheCest
 
     public function unknownValues(IntegrationTester $I): void
     {
-        $I->cleanup();
-
         $I->assertNull($this->cache->get('key'), 'Returns null on unknown key');
         $I->assertFalse($this->cache->has('key'), 'Returns null on unknown key');
     }
@@ -123,15 +120,15 @@ class PredisSimpleCacheCest
             'key4' => 'value',
         ], -2);
 
-        $I->assertNull($this->cache->get('key1'), "key1 is not present");
-        $I->assertNull($this->cache->get('key2'), "key2 is not present");
-        $I->assertNull($this->cache->get('key3'), "key3 is not present");
-        $I->assertNull($this->cache->get('key4'), "key4 is not present");
+        $I->assertNull($this->cache->get('key1'), "key1 is not present after zero ttl");
+        $I->assertNull($this->cache->get('key2'), "key2 is not present after zero ttl");
+        $I->assertNull($this->cache->get('key3'), "key3 is not present after negative ttl");
+        $I->assertNull($this->cache->get('key4'), "key4 is not present after negative ttl");
 
-        $I->assertFalse($this->cache->has('key1'), "key1 is not present");
-        $I->assertFalse($this->cache->has('key2'), "key2 is not present");
-        $I->assertFalse($this->cache->has('key3'), "key3 is not present");
-        $I->assertFalse($this->cache->has('key4'), "key4 is not present");
+        $I->assertFalse($this->cache->has('key1'), "key1 is not present after zero ttl");
+        $I->assertFalse($this->cache->has('key2'), "key2 is not present after zero ttl");
+        $I->assertFalse($this->cache->has('key3'), "key3 is not present after negative ttl");
+        $I->assertFalse($this->cache->has('key4'), "key4 is not present after negative ttl");
     }
 
     public function getMultiple(IntegrationTester $I): void
@@ -181,7 +178,7 @@ class PredisSimpleCacheCest
 
     public function basicUsageWithLongKey(IntegrationTester $I): void
     {
-        $key1 = str_repeat('a', 300);
+        $key1 = str_repeat('a', 300); //Technically PSR-16 only requires support for 64 characters in keys.
         $key2 = str_repeat('b', 300);
         $key3 = str_repeat('c', 300);
 
@@ -368,8 +365,7 @@ class PredisSimpleCacheCest
         $this->cache->set('key', '5');
         $result = $this->cache->get('key');
 
-        $I->assertTrue('5' === $result, 'Wrong data type. If we store a string we must get an string back.');
-        $I->assertTrue(is_string($result), 'Wrong data type. If we store a string we must get an string back.');
+        $I->assertSame('5', $result, 'String value should keep type in cache');
     }
 
     public function dataTypeInteger(IntegrationTester $I): void
@@ -377,8 +373,7 @@ class PredisSimpleCacheCest
         $this->cache->set('key', 5);
         $result = $this->cache->get('key');
 
-        $I->assertTrue(5 === $result, 'Wrong data type. If we store an int we must get an int back.');
-        $I->assertTrue(is_int($result), 'Wrong data type. If we store an int we must get an int back.');
+        $I->assertSame(5, $result, 'Integer value should keep type in cache');
     }
 
     public function dataTypeFloat(IntegrationTester $I): void
@@ -388,8 +383,7 @@ class PredisSimpleCacheCest
 
         $result = $this->cache->get('key');
 
-        $I->assertIsFloat($result, 'Wrong data type. If we store float we must get an float back.');
-        $I->assertEquals($float, $result);
+        $I->assertSame($float, $result, 'String value should keep type in cache');
     }
 
     public function dataTypeBoolean(IntegrationTester $I): void
@@ -398,7 +392,7 @@ class PredisSimpleCacheCest
         $result = $this->cache->get('key');
 
         $I->assertFalse($result);
-        $I->assertTrue($this->cache->has('key'), 'has() should return true when true are stored. ');
+        $I->assertTrue($this->cache->has('key'), 'has() should return true when true are stored.');
     }
 
     public function dataTypeArray(IntegrationTester $I): void
@@ -441,7 +435,7 @@ class PredisSimpleCacheCest
         $key = $example['key'];
         $this->cache->set($key, 'foobar');
 
-        $I->assertEquals('foobar', $this->cache->get($key));
+        $I->assertEquals('foobar', $this->cache->get($key), "Can use valid key {$key}");
     }
 
     /**
@@ -465,7 +459,7 @@ class PredisSimpleCacheCest
         $value = $example['value'];
         $this->cache->set('key', $value);
 
-        $I->assertEquals($value, $this->cache->get('key'));
+        $I->assertEquals($value, $this->cache->get('key'), "Can use valid data");
     }
 
     /**
@@ -479,19 +473,19 @@ class PredisSimpleCacheCest
         $this->cache->setMultiple($value_list);
         $result = $this->cache->getMultiple(['key']);
 
-        $I->assertEquals($value_list, $result);
+        $I->assertEquals($value_list, $result, "Can use valid data in setMultiple");
     }
 
     public function objectAsDefaultValue(IntegrationTester $I): void
     {
-        $obj      = new \stdClass();
+        $obj = new \stdClass();
         $obj->foo = 'value';
-        $I->assertEquals($obj, $this->cache->get('key', $obj));
+        $I->assertEquals($obj, $this->cache->get('key', $obj), 'Can use object as default');
     }
 
     public function objectDoesNotChangeInCache(IntegrationTester $I): void
     {
-        $obj      = new \stdClass();
+        $obj = new \stdClass();
         $obj->foo = 'value';
         $this->cache->set('key', $obj);
         $obj->foo = 'changed';
@@ -538,19 +532,19 @@ class PredisSimpleCacheCest
         $I->assertFalse($this->cache->has('key1'), 'Default TTL (1s) is applied');
 
         sleep(2);
-        $I->assertNull($this->cache->get('key2'), 'Value for key2 must expire (3s) after ttl');
-        $I->assertNull($this->cache->get('key3'), 'Value for key3 must expire (3s) after ttl');
-        $I->assertNull($this->cache->get('key4'), 'Value for key4 must expire (3s) after ttl');
-        $I->assertNull($this->cache->get('key5'), 'Value for key5 must expire (3s) after ttl');
-        $I->assertNull($this->cache->get('key6'), 'Value for key6 must expire (3s) after ttl');
-        $I->assertNull($this->cache->get('key7'), 'Value for key7 must expire (3s) after ttl');
+        $I->assertNull($this->cache->get('key2'), 'Value for key2 must expire after ttl (3s)');
+        $I->assertNull($this->cache->get('key3'), 'Value for key3 must expire after ttl (3s)');
+        $I->assertNull($this->cache->get('key4'), 'Value for key4 must expire after ttl (3s)');
+        $I->assertNull($this->cache->get('key5'), 'Value for key5 must expire after ttl (3s)');
+        $I->assertNull($this->cache->get('key6'), 'Value for key6 must expire after ttl (3s)');
+        $I->assertNull($this->cache->get('key7'), 'Value for key7 must expire after ttl (3s)');
 
-        $I->assertFalse($this->cache->has('key2'), 'Value for key2 must expire (3s) after ttl');
-        $I->assertFalse($this->cache->has('key3'), 'Value for key3 must expire (3s) after ttl');
-        $I->assertFalse($this->cache->has('key4'), 'Value for key4 must expire (3s) after ttl');
-        $I->assertFalse($this->cache->has('key5'), 'Value for key5 must expire (3s) after ttl');
-        $I->assertFalse($this->cache->has('key6'), 'Value for key6 must expire (3s) after ttl');
-        $I->assertFalse($this->cache->has('key7'), 'Value for key7 must expire (3s) after ttl');
+        $I->assertFalse($this->cache->has('key2'), 'has() returns false for key2 after ttl');
+        $I->assertFalse($this->cache->has('key3'), 'has() returns false for key3 after ttl');
+        $I->assertFalse($this->cache->has('key4'), 'has() returns false for key4 after ttl');
+        $I->assertFalse($this->cache->has('key5'), 'has() returns false for key5 after ttl');
+        $I->assertFalse($this->cache->has('key6'), 'has() returns false for key6 after ttl');
+        $I->assertFalse($this->cache->has('key7'), 'has() returns false for key7 after ttl');
     }
 
     protected function validKeys(): array
