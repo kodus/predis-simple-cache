@@ -13,7 +13,7 @@ use Traversable;
  */
 class PredisSimpleCache implements CacheInterface
 {
-    private const VALID_KEY_REGEX = '/^[a-zA-Z0-9\.\-]+$/';
+    const PSR16_RESERVED = '/\{|\}|\(|\)|\/|\\\\|\@|\:/u';
 
     private Client $client;
 
@@ -171,8 +171,12 @@ class PredisSimpleCache implements CacheInterface
             throw new InvalidArgumentException("Invalid key type {$type}");
         }
 
-        if (preg_match(self::VALID_KEY_REGEX, $key) !== 1) {
-            throw new InvalidArgumentException("Illegal character in key '{$key}'");
+        if ($key === "") {
+            throw new InvalidArgumentException("Key must contain at least 1 character");
+        }
+
+        if (preg_match(self::PSR16_RESERVED, $key, $matches) === 1) {
+            throw new InvalidArgumentException("Illegal character in key '{$matches[0]}'");
         }
     }
 

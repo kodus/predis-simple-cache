@@ -547,11 +547,18 @@ class PredisSimpleCacheCest
         $I->assertFalse($this->cache->has('key7'), 'has() returns false for key7 after ttl');
     }
 
+    /**
+     * PSR-16 only requires support for a-zA-Z0-9.- but Redis handles other characters very well, so an edge case
+     * beyond a-zA-Z0-9.- is added to assert and document this.
+     *
+     * @return string[][]
+     */
     protected function validKeys(): array
     {
         return [
             ['key' => 'AbC19-.'],
             ['key' => '1234567890123456789012345678901234567890123456789012345678901234'],
+            ['value' => '!"#¤%&£$=→ß“ªĸ↓ð_'],
         ];
     }
 
