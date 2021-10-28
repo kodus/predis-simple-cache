@@ -21,6 +21,14 @@ In the example below the cache is constructed with a client with no custom setti
 
 ```php
 <?php
-$client = new \Predis\Client();
+$client = new Predis\Client();
 $cache = new Kodus\PredisSimpleCache\PredisSimpleCache($client, 60 * 60);
 ```
+
+## Developer notes
+The `Predis\ClientInterface` interface from `predis/predis` defines the API via `@method` docblock annotations entries
+which are then invoked by the `__call()` method.
+
+The typehints in these annotations have proven to be a bit unreliable, and in cases like 
+`Predis\ClientInterface::setex()`, we've had to refer to the [Redis documentation](https://redis.io/commands/setex)
+instead.
