@@ -259,11 +259,6 @@ class PredisSimpleCacheCest
         $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->getMultiple($keys));
     }
 
-    public function getMultipleNoIterable(IntegrationTester $I): void
-    {
-        $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->getMultiple('key'));
-    }
-
     /**
      * @dataProvider invalidKeys
      */
@@ -286,11 +281,6 @@ class PredisSimpleCacheCest
         })();
 
         $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->setMultiple($generator));
-    }
-
-    public function setMultipleNoIterable(IntegrationTester $I): void
-    {
-        $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->setMultiple('key'));
     }
 
     /**
@@ -322,34 +312,6 @@ class PredisSimpleCacheCest
             'key2',
         ];
         $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->deleteMultiple($key_list));
-    }
-
-    public function deleteMultipleNoIterable(IntegrationTester $I): void
-    {
-        $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->deleteMultiple('key'));
-    }
-
-    /**
-     * @dataProvider invalidTtl
-     */
-    public function setInvalidTtl(IntegrationTester $I, Example $example): void
-    {
-        $ttl = $example['ttl'];
-
-        $I->expectThrowable(InvalidArgumentException::class, fn() => $this->cache->set('key', 'value', $ttl));
-    }
-
-    /**
-     * @dataProvider invalidTtl
-     */
-    public function setMultipleInvalidTtl(IntegrationTester $I, Example $example): void
-    {
-        $ttl = $example['ttl'];
-
-        $I->expectThrowable(
-            InvalidArgumentException::class,
-            fn() => $this->cache->setMultiple(['key' => 'value'], $ttl)
-        );
     }
 
     public function nullOverwrite(IntegrationTester $I): void
@@ -577,22 +539,8 @@ class PredisSimpleCacheCest
 
     protected function invalidKeys(): array
     {
-        return array_merge(
-            $this->invalidArrayKeys(),
-            [
-                ['key' => 0],
-                ['key' => 2],
-            ]);
-    }
-
-    protected function invalidArrayKeys(): array
-    {
         return [
             ['key' => ''],
-            ['key' => true],
-            ['key' => false],
-            ['key' => null],
-            ['key' => 2.5],
             ['key' => '{str'],
             ['key' => 'rand{'],
             ['key' => 'rand{str'],
@@ -603,25 +551,21 @@ class PredisSimpleCacheCest
             ['key' => 'rand\\str'],
             ['key' => 'rand@str'],
             ['key' => 'rand:str'],
-            ['key' => new \stdClass()],
-            ['key' => ['array']],
         ];
     }
 
-    protected function invalidTTL(): array
+    protected function invalidArrayKeys(): array
     {
-        return [
-            ['ttl' => ''],
-            ['ttl' => true],
-            ['ttl' => false],
-            ['ttl' => 'abc'],
-            ['ttl' => 2.5],
-            ['ttl' => ' 1'], // Could be cast to a int
-            ['ttl' => '12foo'], // Could be cast to a int
-            ['ttl' => '025'], // Could be interpreted as hex
-            ['ttl' => new \stdClass()],
-            ['ttl' => ['array']],
-        ];
+        return array_merge(
+            $this->invalidKeys(),
+            [
+                ['key' => true],
+                ['key' => false],
+                ['key' => null],
+                ['key' => 2.5],
+                ['key' => new \stdClass()],
+                ['key' => ['array']],
+            ]);
     }
 
     private function createGenerator(array $array): Generator
