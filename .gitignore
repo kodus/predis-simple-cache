@@ -4,3 +4,4 @@
 /tests/*.suite.yml
 /codeception.yml
 composer.lock
+.idea/
