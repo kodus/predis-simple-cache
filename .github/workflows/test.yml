@@ -1,6 +1,6 @@
 name: Codeception Tests
 
-on: [push]
+on: [ push ]
 
 jobs:
   build:
@@ -11,24 +11,24 @@ jobs:
     strategy:
       matrix:
         operating-system: [ ubuntu-latest, ubuntu-20.04 ]
-        php: [ '8.0', '8.1']
-        redis-version: [4, 5, 6]
+        php: [ '8.0', '8.1', '8.4' ]
+        redis-version: [ 4, 5, 6, 7 ]
     
     steps:
       - uses: actions/checkout@master
-      
+
       - name: Setup PHP
-        uses: nanasess/setup-php@master
+        uses: shivammathur/setup-php@master
         with:
           php-version: ${{ matrix.php }}
-          
+
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.2.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: ${{ matrix.redis-version }}
-        
+
       - name: Install dependencies
-        run: composer install 
-      
+        run: composer install
+
       - name: Run tests
-        run: php vendor/bin/codecept run 
+        run: composer run test
